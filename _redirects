@@ -1,7 +1,0 @@
-# Cloudflare Pages redirect rules — one line per QR.
-# Format: /slug  destination-url  status
-#
-# Add a new QR: add a line below, commit, push. Cloudflare redeploys automatically.
-#
-# Example:
-# /edicion-parejas-caja  https://instagram.com/enpalabrass  302
