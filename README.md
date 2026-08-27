@@ -4,9 +4,9 @@ Redirector unico para los QR impresos en cajas de producto. Reemplaza el patron 
 
 ## Como funciona
 
-Sitio servido por **Cloudflare Pages**. Cada QR apunta a `https://qr.enpalabras.com.ar/<slug>`. Una Cloudflare Pages Function (`functions/[[slug]].js`) busca el slug en `redirects.js`, renderiza una pagina minima con **Cloudflare Web Analytics** y redirige (asi cada scan queda registrado con path, fecha, pais, dispositivo, etc. en el dashboard de Cloudflare).
+Sitio servido por **Cloudflare Pages**. Cada QR apunta a `https://qr.enpalabras.com.ar/<slug>`. Una Cloudflare Pages Function (`functions/[[slug]].js`) busca el slug en `redirects.js`, hace un **302 instantaneo** al destino, y en paralelo (sin frenar el redirect) manda un evento `qr_scan` a **GA4** via Measurement Protocol (server-side, no depende de JS en el navegador ni de adblockers).
 
-Si el slug no existe, redirige a `enpalabras.com.ar` por defecto.
+Si el slug no existe, redirige a `enpalabras.com.ar` sin trackear.
 
 ## Agregar un QR nuevo
 
@@ -27,16 +27,19 @@ No hace falta crear un repo nuevo ni tocar nada mas.
 ### 1. Cloudflare Pages
 
 1. Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git → elegir `EnPalabras/ep-qr-redirects`.
-2. Build settings: Framework preset = None, build command = (vacio), build output directory = `/`. Cloudflare detecta la carpeta `functions/` sola, no hace falta configurar nada mas.
+2. Build settings: Framework preset = None, build command = (vacio), build output directory = `/`. Cloudflare detecta la carpeta `functions/` sola.
 3. Deploy. Va a quedar accesible en `https://ep-qr-redirects.pages.dev`.
 4. En el proyecto → Custom domains → agregar `qr.enpalabras.com.ar` (requiere que `enpalabras.com.ar` este en la misma cuenta de Cloudflare).
 
-### 2. Web Analytics (para que sea trackeable)
+### 2. Variables de entorno (GA4)
 
-1. Cloudflare Dashboard → Analytics & Logs → Web Analytics → Add a site.
-2. Hostname: `qr.enpalabras.com.ar`.
-3. Copiar el `token` que te da (es un string tipo `data-cf-beacon`).
-4. Reemplazar `REPLACE_WITH_CF_ANALYTICS_TOKEN` en `index.html` y en `functions/[[slug]].js` por ese token.
-5. Commit + push.
+En el proyecto de Pages → Settings → Environment variables → agregar, para **Production** (y Preview si queres trackear tambien los previews):
 
-Con eso, en el dashboard de Web Analytics vas a poder ver visitas por path (`/test`, `/mi-slug-nuevo`, etc.) — cuantas veces se escaneo cada QR, cuando, desde donde.
+| Variable | Valor | Tipo |
+|---|---|---|
+| `GA4_MEASUREMENT_ID` | `G-WMYTMVPY18` | Plain text |
+| `GA4_API_SECRET` | (el secret que generaste en GA4 → Admin → Data streams → Measurement Protocol API secrets) | **Encrypt** |
+
+Guardar y volver a deployar (Deployments → ... → Retry deployment) para que tome las variables.
+
+Con esto, en GA4 → Reports → Realtime (o Explore, buscando el evento `qr_scan`) vas a ver cada scan con el `slug` y el `destination` como parametros del evento.
