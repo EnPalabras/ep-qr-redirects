@@ -5,7 +5,7 @@ export const config = { runtime: "edge" };
 
 export default async function handler(request) {
   const url = new URL(request.url);
-  const slug = url.pathname.replace(/^\/+/, "");
+  const slug = url.pathname.replace(/^\/(api\/)?/, "");
   const target = REDIRECTS[slug];
   const dest = target || "https://enpalabras.com.ar";
 
