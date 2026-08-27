@@ -4,7 +4,7 @@ Redirector unico para los QR impresos en cajas de producto. Reemplaza el patron 
 
 ## Como funciona
 
-Sitio servido por **Cloudflare Pages**. Cada QR apunta a `https://qr.enpalabras.com.ar/<slug>`. Una Cloudflare Pages Function (`functions/[[slug]].js`) busca el slug en `redirects.js`, hace un **302 instantaneo** al destino, y en paralelo (sin frenar el redirect) manda un evento `qr_scan` a **GA4** via Measurement Protocol (server-side, no depende de JS en el navegador ni de adblockers).
+Sitio servido por **Vercel** (sin framework, solo una Edge Function suelta en `api/`). Cada QR apunta a `https://qr.enpalabras.com.ar/<slug>`. `api/[...slug].js` busca el slug en `redirects.js`, hace un **302 instantaneo** al destino, y en paralelo (sin frenar el redirect) manda un evento `qr_scan` a **GA4** via Measurement Protocol (server-side, no depende de JS en el navegador ni de adblockers).
 
 Si el slug no existe, redirige a `enpalabras.com.ar` sin trackear.
 
@@ -18,28 +18,28 @@ Si el slug no existe, redirige a `enpalabras.com.ar` sin trackear.
    };
    ```
 2. Commit + push a `main`.
-3. Cloudflare Pages redeploya solo. El QR nuevo ya puede imprimirse apuntando a `https://qr.enpalabras.com.ar/mi-slug-nuevo`.
+3. Vercel redeploya solo. El QR nuevo ya puede imprimirse apuntando a `https://qr.enpalabras.com.ar/mi-slug-nuevo`.
 
 No hace falta crear un repo nuevo ni tocar nada mas.
 
 ## Setup inicial (una sola vez)
 
-### 1. Cloudflare Pages
+### 1. Vercel
 
-1. Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git → elegir `EnPalabras/ep-qr-redirects`.
-2. Build settings: Framework preset = None, build command = (vacio), build output directory = `/`. Cloudflare detecta la carpeta `functions/` sola.
-3. Deploy. Va a quedar accesible en `https://ep-qr-redirects.pages.dev`.
-4. En el proyecto → Custom domains → agregar `qr.enpalabras.com.ar` (requiere que `enpalabras.com.ar` este en la misma cuenta de Cloudflare).
+1. Vercel Dashboard → Add New → Project → Import `EnPalabras/ep-qr-redirects`.
+2. Framework Preset: **Other** (no es Next, no hace falta build command ni output directory — Vercel detecta la carpeta `api/` sola).
+3. Deploy. Va a quedar accesible en `https://ep-qr-redirects.vercel.app`.
+4. Project → Settings → Domains → agregar `qr.enpalabras.com.ar`.
 
 ### 2. Variables de entorno (GA4)
 
-En el proyecto de Pages → Settings → Environment variables → agregar, para **Production** (y Preview si queres trackear tambien los previews):
+Project → Settings → Environment Variables → agregar, para **Production** (y Preview si queres trackear tambien los previews):
 
 | Variable | Valor | Tipo |
 |---|---|---|
-| `GA4_MEASUREMENT_ID` | `G-WMYTMVPY18` | Plain text |
-| `GA4_API_SECRET` | (el secret que generaste en GA4 → Admin → Data streams → Measurement Protocol API secrets) | **Encrypt** |
+| `GA4_MEASUREMENT_ID` | `G-WMYTMVPY18` | normal |
+| `GA4_API_SECRET` | (el secret que generaste en GA4 → Admin → Data streams → Measurement Protocol API secrets) | **Sensitive** |
 
-Guardar y volver a deployar (Deployments → ... → Retry deployment) para que tome las variables.
+Guardar y redeployar (Deployments → ... → Redeploy) para que tome las variables.
 
 Con esto, en GA4 → Reports → Realtime (o Explore, buscando el evento `qr_scan`) vas a ver cada scan con el `slug` y el `destination` como parametros del evento.

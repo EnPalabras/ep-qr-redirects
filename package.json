@@ -1,0 +1,7 @@
+{
+  "name": "ep-qr-redirects",
+  "private": true,
+  "dependencies": {
+    "@vercel/functions": "^1.5.0"
+  }
+}
