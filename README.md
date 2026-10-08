@@ -4,23 +4,35 @@ Redirector unico para los QR impresos en cajas de producto. Reemplaza el patron 
 
 ## Como funciona
 
-Sitio servido por **Vercel** (sin framework, solo una Edge Function suelta en `api/`). Cada QR apunta a `https://qr.enpalabras.com.ar/<slug>`. `api/[...slug].js` busca el slug en `redirects.js`, hace un **302 instantaneo** al destino, y en paralelo (sin frenar el redirect) manda un evento `qr_scan` a **GA4** via Measurement Protocol (server-side, no depende de JS en el navegador ni de adblockers).
+Sitio servido por **Vercel** (sin framework, solo Edge Functions sueltas en `api/`). Cada QR apunta a `https://qr.enpalabras.com.ar/<slug>`. `api/[...slug].js` busca el slug en el store de **Vercel Global Config** `qr-redirects` (ex Edge Config: lecturas de ~ms en el edge), hace un **302 instantaneo** al destino, y en paralelo (sin frenar el redirect) manda un evento `qr_scan` a **GA4** via Measurement Protocol (server-side, no depende de JS en el navegador ni de adblockers).
 
 Si el slug no existe, redirige a `enpalabras.com.ar` sin trackear.
 
-## Agregar un QR nuevo
+## API para administrar los QR
 
-1. Agregar una entrada en `redirects.js`:
-   ```js
-   export const REDIRECTS = {
-     test: "https://enpalabras.com.ar",
-     "mi-slug-nuevo": "https://instagram.com/enpalabrass",
-   };
-   ```
-2. Commit + push a `main`.
-3. Vercel redeploya solo. El QR nuevo ya puede imprimirse apuntando a `https://qr.enpalabras.com.ar/mi-slug-nuevo`.
+Todo con `Authorization: Bearer $REDIRECTS_API_TOKEN` (sin token o con token malo → 401).
 
-No hace falta crear un repo nuevo ni tocar nada mas.
+```bash
+API=https://qr.enpalabras.com.ar/api/urls
+AUTH="Authorization: Bearer $REDIRECTS_API_TOKEN"
+
+# Listar todos → { "slug": "url", ... }
+curl -H "$AUTH" $API
+
+# Agregar uno nuevo → 201 (409 si el slug ya existe)
+curl -X POST -H "$AUTH" -H 'content-type: application/json' \
+  -d '{"slug":"mi-slug-nuevo","url":"https://instagram.com/enpalabrass"}' $API
+
+# Cambiar el destino de uno existente → 200 (404 si no existe)
+curl -X PUT -H "$AUTH" -H 'content-type: application/json' \
+  -d '{"url":"https://enpalabras.com.ar/nuevo-destino"}' $API/mi-slug-nuevo
+```
+
+- Slugs: `a-z`, `0-9` y guiones, hasta 64 caracteres (`api` esta reservado).
+- URLs: solo `https://`.
+- No hay DELETE a proposito: un QR impreso no deberia quedar apuntando a la nada. Para "darlo de baja", hacele PUT a `https://enpalabras.com.ar`.
+- Los cambios tardan unos segundos en propagarse a todas las regiones. No hace falta redeployar.
+- Tambien se puede ver o editar a mano: Vercel Dashboard → Storage → `qr-redirects`, o `vercel global-config items qr-redirects`.
 
 ## Setup inicial (una sola vez)
 
@@ -41,5 +53,15 @@ Project → Settings → Environment Variables → agregar, para **Production** 
 | `GA4_API_SECRET` | (el secret que generaste en GA4 → Admin → Data streams → Measurement Protocol API secrets) | **Sensitive** |
 
 Guardar y redeployar (Deployments → ... → Redeploy) para que tome las variables.
+
+### 3. Variables de entorno (Global Config + API)
+
+| Variable | Valor | Tipo |
+|---|---|---|
+| `GLOBAL_CONFIG` | connection string del store `qr-redirects` (`https://global-config.vercel.com/<id>?token=<read token>`) | **Sensitive** |
+| `GLOBAL_CONFIG_ID` | `ecfg_ot5azuirx0n1lnpgjdlsivbg5ua6` | normal |
+| `VERCEL_TEAM_ID` | `team_po3FZ6bZsklD0QcEAy9qE4xh` | normal |
+| `VERCEL_API_TOKEN` | access token de Vercel con scope al team (lo usa la API para escribir en el store) | **Sensitive** |
+| `REDIRECTS_API_TOKEN` | token propio que gatea `/api/urls` (random, `openssl rand -hex 32`) | **Sensitive** |
 
 Con esto, en GA4 → Reports → Realtime (o Explore, buscando el evento `qr_scan`) vas a ver cada scan con el `slug` y el `destination` como parametros del evento.

@@ -1,15 +1,15 @@
 import { waitUntil } from "@vercel/functions";
-import { REDIRECTS } from "../redirects.js";
+import { get } from "@vercel/global-config";
 
 export const config = { runtime: "edge" };
 
 export default async function handler(request) {
   const url = new URL(request.url);
   const slug = url.pathname.replace(/^\/(api\/)?/, "");
-  const target = REDIRECTS[slug];
-  const dest = target || "https://enpalabras.com.ar";
+  const target = slug ? await get(slug).catch(() => undefined) : undefined;
+  const dest = typeof target === "string" ? target : "https://enpalabras.com.ar";
 
-  if (target && process.env.GA4_MEASUREMENT_ID && process.env.GA4_API_SECRET) {
+  if (dest === target && process.env.GA4_MEASUREMENT_ID && process.env.GA4_API_SECRET) {
     waitUntil(trackScan(slug, dest));
   }
 
