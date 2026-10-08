@@ -28,6 +28,7 @@ curl -X PUT -H "$AUTH" -H 'content-type: application/json' \
   -d '{"url":"https://enpalabras.com.ar/nuevo-destino"}' $API/mi-slug-nuevo
 ```
 
+- `PUT /api/urls/:slug` llega a `api/urls.js` via el rewrite de `vercel.json`.
 - Slugs: `a-z`, `0-9` y guiones, hasta 64 caracteres (`api` esta reservado).
 - URLs: solo `https://`.
 - No hay DELETE a proposito: un QR impreso no deberia quedar apuntando a la nada. Para "darlo de baja", hacele PUT a `https://enpalabras.com.ar`.
